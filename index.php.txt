@@ -1,0 +1,220 @@
+<?php
+// start session عشان نستخدم الرسائل
+session_start();
+
+// بيانات الجينرز
+$genres = ["Fiction", "Non-Fiction", "Science", "History", "Biography", "Technology"];
+
+// كتب جاهزة بالبداية
+$books = [
+    ["id"=>1,"title"=>"Book One","author"=>"Mohammed Kronz","genre"=>"Science","year"=>2022,"pages"=>120],
+    ["id"=>2,"title"=>"Book Two","author"=>"Mody Amir","genre"=>"History","year"=>2021,"pages"=>200],
+    ["id"=>3,"title"=>"Book Three","author"=>"Mohammed Kronz","genre"=>"Technology","year"=>2023,"pages"=>150],
+];
+
+// مصفوفة الأخطاء
+$errors = [];
+
+// لتخزين البيانات المدخلة
+$submittedData = [];
+
+// إذا المستخدم ضغط submit
+if($_SERVER["REQUEST_METHOD"] === "POST"){
+
+    // تنظيف البيانات
+    foreach($_POST as $key=>$value){
+        $submittedData[$key] = htmlspecialchars(trim($value));
+    }
+
+    // التحقق من العنوان
+    if(empty($submittedData["title"])){
+        $errors["title"] = "Title is required";
+    }elseif(strlen($submittedData["title"]) < 3 || strlen($submittedData["title"]) > 120){
+        $errors["title"] = "Title must be between 3 and 120 chars";
+    }
+
+    // التحقق من اسم الكاتب
+    if(empty($submittedData["author"])){
+        $errors["author"] = "Author is required";
+    }elseif(str_word_count($submittedData["author"]) < 2){
+        $errors["author"] = "Enter first and last name";
+    }
+
+    // التحقق من الجينر
+    if(empty($submittedData["genre"])){
+        $errors["genre"] = "Genre required";
+    }elseif(!in_array($submittedData["genre"], $genres)){
+        $errors["genre"] = "Invalid genre";
+    }
+
+    // التحقق من السنة
+    $currentYear = date("Y");
+    if(empty($submittedData["year"])){
+        $errors["year"] = "Year required";
+    }elseif(!is_numeric($submittedData["year"]) || strlen($submittedData["year"]) != 4 ||
+        $submittedData["year"] < 1000 || $submittedData["year"] > $currentYear){
+        $errors["year"] = "Invalid year";
+    }
+
+    // التحقق من عدد الصفحات
+    if(empty($submittedData["pages"])){
+        $errors["pages"] = "Pages required";
+    }elseif(!is_numeric($submittedData["pages"]) || $submittedData["pages"] <= 0){
+        $errors["pages"] = "Pages must be positive";
+    }
+
+    // إذا ما في أخطاء
+    if(empty($errors)){
+
+        // نجيب أكبر id
+        $maxId = 0;
+        foreach($books as $b){
+            if($b["id"] > $maxId){
+                $maxId = $b["id"];
+            }
+        }
+
+        // إنشاء كتاب جديد
+        $newBook = [
+            "id"=>$maxId+1,
+            "title"=>$submittedData["title"],
+            "author"=>$submittedData["author"],
+            "genre"=>$submittedData["genre"],
+            "year"=>$submittedData["year"],
+            "pages"=>$submittedData["pages"],
+        ];
+
+        // إضافة الكتاب
+        $books[] = $newBook;
+
+        // رسالة نجاح
+        $_SESSION["success"] = "Book added successfully!";
+
+        // redirect عشان ما يعيد الإرسال
+        header("Location: index.php");
+        exit;
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Book Library</title>
+    <!-- bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container mt-4">
+    <div class="row">
+
+        <!-- الفورم -->
+        <div class="col-md-4">
+
+            <!-- رسالة نجاح -->
+            <?php if(isset($_SESSION["success"])): ?>
+                <div class="alert alert-success alert-dismissible fade show">
+                    <?php echo $_SESSION["success"]; unset($_SESSION["success"]); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            <?php endif; ?>
+
+            <!-- رسالة أخطاء -->
+            <?php if(!empty($errors)): ?>
+                <div class="alert alert-danger">Check errors below</div>
+            <?php endif; ?>
+
+            <form method="POST">
+
+                <!-- title -->
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" name="title"
+                        class="form-control <?php echo isset($errors["title"]) ? 'is-invalid' : '' ?>"
+                        value="<?php echo $submittedData["title"] ?? '' ?>">
+                    <div class="invalid-feedback"><?php echo $errors["title"] ?? '' ?></div>
+                </div>
+
+                <!-- author -->
+                <div class="mb-3">
+                    <label class="form-label">Author</label>
+                    <input type="text" name="author"
+                        class="form-control <?php echo isset($errors["author"]) ? 'is-invalid' : '' ?>"
+                        value="<?php echo $submittedData["author"] ?? '' ?>">
+                    <div class="invalid-feedback"><?php echo $errors["author"] ?? '' ?></div>
+                </div>
+
+                <!-- genre -->
+                <div class="mb-3">
+                    <label class="form-label">Genre</label>
+                    <select name="genre"
+                        class="form-control <?php echo isset($errors["genre"]) ? 'is-invalid' : '' ?>">
+                        <option value="">Select</option>
+                        <?php foreach($genres as $g): ?>
+                            <option value="<?php echo $g; ?>"
+                                <?php echo (isset($submittedData["genre"]) && $submittedData["genre"]==$g) ? 'selected' : '' ?>>
+                                <?php echo $g; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="invalid-feedback"><?php echo $errors["genre"] ?? '' ?></div>
+                </div>
+
+                <!-- year -->
+                <div class="mb-3">
+                    <label class="form-label">Year</label>
+                    <input type="number" name="year"
+                        class="form-control <?php echo isset($errors["year"]) ? 'is-invalid' : '' ?>"
+                        value="<?php echo $submittedData["year"] ?? '' ?>">
+                    <div class="invalid-feedback"><?php echo $errors["year"] ?? '' ?></div>
+                </div>
+
+                <!-- pages -->
+                <div class="mb-3">
+                    <label class="form-label">Pages</label>
+                    <input type="number" name="pages"
+                        class="form-control <?php echo isset($errors["pages"]) ? 'is-invalid' : '' ?>"
+                        value="<?php echo $submittedData["pages"] ?? '' ?>">
+                    <div class="invalid-feedback"><?php echo $errors["pages"] ?? '' ?></div>
+                </div>
+
+                <button class="btn btn-primary">Add Book</button>
+            </form>
+        </div>
+
+        <!-- الجدول -->
+        <div class="col-md-8">
+            <table class="table table-striped table-hover table-bordered">
+                <tr>
+                    <th>#</th>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Genre</th>
+                    <th>Year</th>
+                    <th>Pages</th>
+                </tr>
+
+                <!-- عرض الكتب -->
+                <?php foreach($books as $b): ?>
+                    <tr>
+                        <td><?php echo $b["id"]; ?></td>
+                        <td><?php echo htmlspecialchars($b["title"]); ?></td>
+                        <td><?php echo htmlspecialchars($b["author"]); ?></td>
+                        <td><?php echo htmlspecialchars($b["genre"]); ?></td>
+                        <td><?php echo $b["year"]; ?></td>
+                        <td><?php echo $b["pages"]; ?></td>
+                    </tr>
+                <?php endforeach; ?>
+
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<!-- bootstrap js -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
